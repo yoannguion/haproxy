@@ -7,15 +7,15 @@
 %global _hardened_build 1
 
 Name:           haproxy
-Version:        1.8.15
-Release:        5%{?dist}
+Version:        2.1.4
+Release:        0%{?dist}
 Summary:        HAProxy reverse proxy for high availability environments
 
 Group:          System Environment/Daemons
 License:        GPLv2+
 
 URL:            http://www.haproxy.org/
-Source0:        http://www.haproxy.org/download/1.8/src/haproxy-%{version}.tar.gz
+Source0:        http://www.haproxy.org/download/2.1/src/haproxy-%{version}.tar.gz
 Source1:        %{name}.service
 Source2:        %{name}.cfg
 Source3:        %{name}.logrotate
