@@ -21,8 +21,6 @@ Source3:        %{name}.logrotate
 Source4:        %{name}.sysconfig
 Source5:        halog.1
 
-Patch0:         bz1984786-fix-openssl-build.patch
-
 BuildRequires:  gcc
 BuildRequires:  lua-devel
 BuildRequires:  pcre2-devel
@@ -50,7 +48,6 @@ availability environments. Indeed, it can:
 
 %prep
 %setup -q
-%patch0 -p1
 
 %build
 regparm_opts=
