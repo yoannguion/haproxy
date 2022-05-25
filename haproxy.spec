@@ -7,7 +7,7 @@
 %global _hardened_build 1
 
 Name:           haproxy
-Version:        2.1.4
+Version:        2.4.17
 Release:        0%{?dist}
 Summary:        HAProxy reverse proxy for high availability environments
 
@@ -15,14 +15,12 @@ Group:          System Environment/Daemons
 License:        GPLv2+
 
 URL:            http://www.haproxy.org/
-Source0:        http://www.haproxy.org/download/2.1/src/haproxy-%{version}.tar.gz
+Source0:        http://www.haproxy.org/download/2.4/src/haproxy-%{version}.tar.gz
 Source1:        %{name}.service
 Source2:        %{name}.cfg
 Source3:        %{name}.logrotate
 Source4:        %{name}.sysconfig
 Source5:        halog.1
-
-Patch0:		bz1664533-fix-handling-priority-flag-HTTP2-decoder.patch
 
 BuildRequires:  lua-devel
 BuildRequires:  pcre-devel
@@ -52,7 +50,6 @@ availability environments. Indeed, it can:
 
 %prep
 %setup -q
-%patch0 -p1
 
 %build
 regparm_opts=

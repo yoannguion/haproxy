@@ -17,7 +17,14 @@ jobs:
       - name: build rpm el8
         env:
           SPEC_FILE: haproxy.spec
-          RELEASE_TAG: v2.1.4
+          RELEASE_TAG: v2.4.17
           RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
-        uses: docker://yoannguion/rpmbuilder
+        uses: docker://yoannguion/rpmbuilder:el8-release-to-github
 
+      - uses: actions/checkout@v2
+      - name: build rpm el9
+        env:
+          SPEC_FILE: haproxy.spec
+          RELEASE_TAG: v2.4.17
+          RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+        uses: docker://yoannguion/rpmbuilder:el9-release-to-github
