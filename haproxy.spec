@@ -11,28 +11,28 @@ Version:        2.4.17
 Release:        0%{?dist}
 Summary:        HAProxy reverse proxy for high availability environments
 
-Group:          System Environment/Daemons
 License:        GPLv2+
 
 URL:            http://www.haproxy.org/
-Source0:        http://www.haproxy.org/download/2.4/src/haproxy-%{version}.tar.gz
+Source0:        %{url}/download/2.4/src/haproxy-%{version}.tar.gz
 Source1:        %{name}.service
 Source2:        %{name}.cfg
 Source3:        %{name}.logrotate
 Source4:        %{name}.sysconfig
 Source5:        halog.1
 
+Patch0:         bz1984786-fix-openssl-build.patch
+
+BuildRequires:  gcc
 BuildRequires:  lua-devel
-BuildRequires:  pcre-devel
-BuildRequires:  zlib-devel
+BuildRequires:  pcre2-devel
 BuildRequires:  openssl-devel
 BuildRequires:  systemd-devel
-BuildRequires:  systemd-units
+BuildRequires:  systemd
+BuildRequires:  make
 
-Requires(pre):      shadow-utils
-Requires(post):     systemd
-Requires(preun):    systemd
-Requires(postun):   systemd
+Requires(pre):  shadow-utils
+%{?systemd_requires}
 
 %description
 HAProxy is a TCP/HTTP reverse proxy which is particularly suited for high
@@ -50,6 +50,7 @@ availability environments. Indeed, it can:
 
 %prep
 %setup -q
+%patch0 -p1
 
 %build
 regparm_opts=
@@ -57,14 +58,12 @@ regparm_opts=
 regparm_opts="USE_REGPARM=1"
 %endif
 
-%{__make} %{?_smp_mflags} CPU="generic" TARGET="linux-glibc" USE_OPENSSL=1 USE_PCRE=1 USE_ZLIB=1 USE_LUA=1 USE_CRYPT_H=1 USE_SYSTEMD=1 USE_LINUX_TPROXY=1 USE_GETADDRINFO=1 ${regparm_opts} ADDINC="%{optflags}" ADDLIB="%{__global_ldflags}"
+%{__make} %{?_smp_mflags} CPU="generic" TARGET="linux-glibc" USE_OPENSSL=1 USE_PCRE2=1 USE_SLZ=1 USE_LUA=1 USE_CRYPT_H=1 USE_SYSTEMD=1 USE_LINUX_TPROXY=1 USE_GETADDRINFO=1 USE_PROMEX=1 ${regparm_opts} ADDINC="%{build_cflags}" ADDLIB="%{build_ldflags}"
 
-pushd contrib/halog
-%{__make} ${halog} OPTIMIZE="%{optflags} %{build_ldflags}" LDFLAGS=
-popd
+%{__make} admin/halog/halog ADDINC="%{build_cflags}" ADDLIB="%{build_ldflags}"
 
-pushd contrib/iprange
-%{__make} ${iprange} OPTIMIZE="%{optflags} %{build_ldflags}" LDFLAGS=
+pushd admin/iprange
+%{__make} OPTIMIZE="%{build_cflags}" LDFLAGS="%{build_ldflags}"
 popd
 
 %install
@@ -79,9 +78,9 @@ popd
 %{__install} -d -m 0755 %{buildroot}%{haproxy_homedir}
 %{__install} -d -m 0755 %{buildroot}%{haproxy_datadir}
 %{__install} -d -m 0755 %{buildroot}%{_bindir}
-%{__install} -p -m 0755 ./contrib/halog/halog %{buildroot}%{_bindir}/halog
-%{__install} -p -m 0755 ./contrib/iprange/iprange %{buildroot}%{_bindir}/iprange
-%{__install} -p -m 0644 ./examples/errorfiles/* %{buildroot}%{haproxy_datadir}
+%{__install} -p -m 0755 ./admin/halog/halog %{buildroot}%{_bindir}/halog
+%{__install} -p -m 0755 ./admin/iprange/iprange %{buildroot}%{_bindir}/iprange
+%{__install} -p -m 0755 ./admin/iprange/ip6range %{buildroot}%{_bindir}/ip6range
 
 for httpfile in $(find ./examples/errorfiles/ -type f) 
 do
@@ -117,7 +116,6 @@ exit 0
 %systemd_postun_with_restart %{name}.service
 
 %files
-%defattr(-,root,root,-)
 %doc doc/* examples/*
 %doc CHANGELOG README ROADMAP VERSION
 %license LICENSE
@@ -132,37 +130,201 @@ exit 0
 %{_sbindir}/%{name}
 %{_bindir}/halog
 %{_bindir}/iprange
+%{_bindir}/ip6range
 %{_mandir}/man1/*
 
 %changelog
-* Wed Jan 09 2019 Ryan O'Hara <rohara@redhat.com> - 1.8.15-5
-- Resolve CVE-2018-20615 (#1664533)
+* Wed Oct 13 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.7-1
+- Update to 2.4.7 (#1966688)
+- Fix domain parts in :scheme and :path fields (CVE-2021-39240, #1998196)
+- Fix spaces in the :method field (CVE-2021-39241, #1998198)
+- Fix mismatch between :authority and Host fields (CVE-2021-39242, #1998200)
+- Fix request smuggling attack or response splitting (CVE-2021-40346, #2000621)
 
-* Sun Dec 16 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.15-4
-- Use empty LDFLAGS to prevent stripping, maintain hardened build
+* Tue Aug 17 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.3-1
+- Update to 2.4.3 (#1966688)
 
-* Sat Dec 15 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.15-3
-- Use LDFLAGS when building contib tools to prevent binary stripping
+* Tue Aug 10 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.2-8
+- Add gating tests (#1966688)
 
-* Fri Dec 14 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.15-2
-- Bump release
+* Mon Aug 09 2021 Mohan Boddu <mboddu@redhat.com> - 2.4.2-7
+- Rebuilt for IMA sigs, glibc 2.34, aarch64 flags
+  Related: rhbz#1991688
+
+* Sat Aug 07 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.2-6
+- Ignore badfuncs error in rpminspect (#1966688)
+
+* Wed Aug 04 2021 Lukas Javorsky <ljavorsk@redhat.com> - 2.4.2-5
+- Second rebuild against pcre2-10.37 (bug #1970765)
+
+* Tue Aug 03 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.2-4
+- Apply patch to fix OpenSSL 3.0 build (#1984786)
+
+* Mon Aug 02 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.2-3
+- Fix OpenSSL 3.0 build (#1984786)
+
+* Wed Jul 28 2021 Lukas Javorsky <ljavorsk@redhat.com> - 2.4.2-2
+- Rebuild against pcre2-10.37 (bug #1970765)
+
+* Mon Jul 12 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.2-1
+- Update to 2.4.2 (#1966688)
+
+* Wed Jun 16 2021 Mohan Boddu <mboddu@redhat.com> - 2.4.0-3
+- Rebuilt for RHEL 9 BETA for openssl 3.0
+  Related: rhbz#1971065
+
+* Thu Jun 03 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.0-2
+- Fix hardened builds (#1966688)
+
+* Tue Jun 01 2021 Ryan O'Hara <rohara@redhat.com> - 2.4.0-1
+- Update to 2.4.0 (#1966688)
+
+* Fri Apr 16 2021 Mohan Boddu <mboddu@redhat.com> - 2.3.4-3
+- Rebuilt for RHEL 9 BETA on Apr 15th 2021. Related: rhbz#1947937
+
+* Tue Jan 26 2021 Fedora Release Engineering <releng@fedoraproject.org> - 2.3.4-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_34_Mass_Rebuild
+
+* Thu Jan 14 2021 Ryan O'Hara <rohara@redhat.com> - 2.3.4-1
+- Update to 2.3.4 (#1914447)
+
+* Tue Dec 08 2020 Ryan O'Hara <rohara@redhat.com> - 2.3.2-1
+- Update to 2.3.2 (#1894994)
+
+* Thu Oct 01 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.4-1
+- Update to 2.2.4 (#1883742)
+    
+* Thu Sep 17 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.3-2
+- Fix build for late loading of libgcc_s
+
+* Mon Sep 14 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.3-1
+- Update to 2.2.3 (#1876932)
+    
+* Fri Jul 31 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.2-1
+- Update to 2.2.2 (#1862400)
+
+* Mon Jul 27 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.1-1
+- Update to 2.2.1 (#1859846)
+
+* Wed Jul 15 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.0-3
+- Update systemd service file
+
+* Fri Jul 10 2020 Tom Callaway <spot@fedoraproject.org> - 2.2.0-2
+- Fix build against lua 5.4
+
+* Thu Jul 09 2020 Ryan O'Hara <rohara@redhat.com> - 2.2.0-1
+- Update to 2.2.0 (#1854519)
+
+* Mon Jun 15 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.7-1
+- Update to 2.1.7 (#1845001)
+
+* Mon Jun 08 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.6-1
+- Update to 2.1.6 (#1845001)
+
+* Mon Jun 01 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.5-1
+- Update to 2.1.5 (#1841837)
+
+* Thu Apr 02 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.4-1
+- Update to 2.1.4 (CVE-2010-11100, #1820200)
+
+* Mon Mar 16 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.3-2
+- Fix invalid element address calculation (#1801109)
+
+* Wed Feb 12 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.3-1
+- Update to 2.1.3 (#1802233)
+
+* Wed Jan 29 2020 Fedora Release Engineering <releng@fedoraproject.org> - 2.1.2-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_32_Mass_Rebuild
+
+* Thu Jan 02 2020 Ryan O'Hara <rohara@redhat.com> - 2.1.2-1
+- Update to 2.1.2 (#1782472)
+
+* Mon Nov 25 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.10-1
+- Update to 2.0.10 (#1772961)
+
+* Wed Nov 06 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.8-1
+- Update to 2.0.8 (#1764483)
+
+* Mon Oct 21 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.7-2
+- Build with Prometheus exporter service (#1755839)
+
+* Mon Oct 21 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.7-1
+- Update to 2.0.7 (#1742544)
+
+* Fri Sep 13 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.6-1
+- Update to 2.0.6 (#1742544)
+
+* Mon Aug 19 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.5-1
+- Update to 2.0.5 (#1742544)
+
+* Tue Jul 30 2019 Ryan O'Hara <rohara@redhat.com> - 2.0.3-1
+- Update to 2.0.3 (#1690492)
+
+* Tue Jul 30 2019 Ryan O'Hara <rohara@redhat.com> - 1.8.20-3
+- Build with PCRE2 (#1669217)
+
+* Thu Jul 25 2019 Fedora Release Engineering <releng@fedoraproject.org> - 1.8.20-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_31_Mass_Rebuild
+
+* Fri May 17 2019 Ryan O'Hara <rohara@redhat.com> - 1.8.20-1
+- Update to 1.8.20
+
+* Wed Feb 13 2019 Ryan O'Hara <rohara@redhat.com> - 1.8.19-1
+- Update to 1.8.19
+
+* Fri Feb 01 2019 Fedora Release Engineering <releng@fedoraproject.org> - 1.8.17-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_30_Mass_Rebuild
+
+* Thu Jan 24 2019 Petr Pisar <ppisar@redhat.com> - 1.8.17-3
+- Rebuild against patched libpcreposix library (bug #1667614)
+
+* Mon Jan 14 2019 Björn Esser <besser82@fedoraproject.org> - 1.8.17-2
+- Rebuilt for libcrypt.so.2 (#1666033)
+
+* Wed Jan 09 2019 Ryan O'Hara <rohara@redhat.com> - 1.8.17-1
+- Update to 1.8.17
+- Fix handling of priority flag in HEADERS frame in HTTP/2 decoder (CVE-2018-20615)
+
+* Sat Dec 22 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.16-1
+- Update to 1.8.16
 
 * Thu Dec 13 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.15-1
-- Update to 1.8.15 (#1631815)
-- Resolve CVE-2018-20102 (#1659017)
-- Resolve CVE-2018-20103 (#1659019)
+- Update to 1.8.15
+- Fix denial of service attack via infinite recursion (CVE-2018-20103, #1658881)
+- Fix out-of-bound reads in dns_validate_dns_response (CVE-2018-20102, #1658882)
 
-* Tue Oct 02 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.14-1
-- Update to 1.8.14 (#1631815)
-- Resolve CVE-2018-14645 (#1631539)
+* Sat Dec 01 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.14-2
+- Use of crpyt() is not thread safe (#1643941)
 
-* Wed Jul 25 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.12-2
-- Fix ownership of /var/lib/haproxy/ to avoid selinux DAC override errors
+* Thu Sep 20 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.14-1
+- Update to 1.8.14 (#1610066)
 
-* Mon Jul 02 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.12-1
-- Update to 1.8.12
-- Resolve CVE-2018-10184 (#1569643)
-- Resolve CVE-2018-11469 (#1584787)
+* Mon Aug 20 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.13-1
+- Update to 1.8.13 (#1610066)
+
+* Thu Aug 16 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.12-4
+- Add BuildRequires gcc (#1604308)
+
+* Fri Jul 13 2018 Fedora Release Engineering <releng@fedoraproject.org> - 1.8.12-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_29_Mass_Rebuild
+
+* Tue Jul 10 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.12-2
+- Fix ownership of /var/lib/haproxy/ to avoid selinux DAC override errors (#1597076)
+
+* Thu Jun 28 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.12-1
+- Update to 1.8.12 (#1580036)
+
+* Wed Jun 27 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.11-1
+- Update to 1.8.11 (#1580036)
+
+* Mon Jun 25 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.10-1
+- Update to 1.8.10 (#1580036)
+
+* Mon May 21 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.9-1
+- Update to 1.8.9 (#1580036)
+
+* Thu May 10 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.8-2
+- Build with USE_GETADDRINFO option
 
 * Thu Apr 19 2018 Ryan O'Hara <rohara@redhat.com> - 1.8.8-1
 - Update to 1.8.8 (#1560121)
